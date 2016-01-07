@@ -1,9 +1,26 @@
 
 # coding: utf-8
 
-# In[12]:
+# In[50]:
 
-import math
+# import math
+import random
+def somPRand(data):
+    random.seed()
+    w=[random.randint(0,10000) for i in range(len(data[0]))]
+    print (w)
+    value=-1
+    num=0
+    for i in range(len(data)):
+        temp=0
+        for j in range(len(data[0])):
+            temp=temp+w[j]*data[i][j]
+        if temp<value or value==-1:
+            value=temp
+            num=i
+    print (data[num])
+    return data[num]
+
 def getId(data):
     res=[]
     resObj=[]
@@ -48,27 +65,38 @@ def tcheb(data,eps):
             num=i
     return num,data[num]
 
-def sat(data,num,decideur):
+def sat(data,num,decideur,best):
     if decideur==0:
         return True,0
     else:
-        #TODO
-        return 
+        temp=0
+        buff=0
+        pos=0
+        for i in range(len(best)):
+            temp=data[num][i]-best[i]
+            if temp>buff:
+                buff=temp
+                pos=i
+        if buff==0:
+            return True,0
+        else:
+            return False,pos
 
 def methode(data,decideur,eps):
     if decideur!=0:
-        
+        best=somPRand(data)
+        print (best)
     dataT=data
-    num=tcheb(data,eps)
-    test,info=sat(data,num,decideur)
+    num,g=tcheb(data,eps)
+    test,info=sat(data,num,decideur,best)
     while(not test):
         dataB=[]
         for i in range(len(dataT)):
             if dataT[i][info]<dataT[num][info]:
                 dataB.append(dataT[i])
         dataT=dataB
-        num=tcheb(dataT,eps)
-        test,info=sat(dataT,num,decideur)
+        num,g=tcheb(dataT,eps)
+        test,info=sat(dataT,num,decideur,best)
     return dataT[num]
 
 def tchebToP(data,eps,vect):
@@ -115,7 +143,7 @@ def tchebToP(data,eps,vect):
      [150,250,1212,7.9,110,4,3],#VWB
      [192,320,1269,6.7,139,4,3]#VWGTI
      ]"""
-"""data=[[-170,-250,1145,7.5,124],#alfa
+data=[[-170,-250,1145,7.5,124],#alfa
      [-231,-370,1315,5.8,166],#audi
      [-180,-250,1035,6.7,139],#abarth5
      [-190,-250,997,5.9,145],#abarth6
@@ -135,8 +163,8 @@ def tchebToP(data,eps,vect):
      [-136,-160,1040,8.7,147],#Suzuki
      [-150,-250,1212,7.9,110],#VWB
      [-192,-320,1269,6.7,139]#VWGTI
-     ]"""
-data=[[-170,-250,1145,7.5,124,-4,-3],#alfa
+     ]
+"""data=[[-170,-250,1145,7.5,124,-4,-3],#alfa
      [-231,-370,1315,5.8,166,-5,-5],#audi
      [-180,-250,1035,6.7,139,-4,-3],#abarth5
      [-190,-250,997,5.9,145,-5,-5],#abarth6
@@ -152,11 +180,17 @@ data=[[-170,-250,1145,7.5,124,-4,-3],#alfa
      [-136,-160,1040,8.7,147,-3,-5],#Suzuki
      [-150,-250,1212,7.9,110,-4,-3],#VWB
      [-192,-320,1269,6.7,139,-4,-3]#VWGTI
-     ]
-print (tcheb(data,0.000001))
+     ]"""
+print (data)
+print (methode(data,1,0.00001))
 
 
-# In[1]:
+# In[ ]:
+
+
+
+
+# In[ ]:
 
 
 
