@@ -30,7 +30,8 @@ def comparaison(item1, item2):
         return -1
     return 0
     
-#on considère en entrée un tableau[instance][critère]
+#entrée : un tableau[instance][critère]
+#retourne le tableau des indices des objets Pareto-optimaux
 def paretoSet(alternatives):
     res = []
     domines = []
@@ -74,22 +75,22 @@ def MPR(item1, item2, contraintes):
         var.append(m.addVar(vtype=GRB.CONTINUOUS, lb=0, name="w%d" % (i+1)))
     m.update()
     #fonction objectif
-    o = [(item2[i] - item1[i]) for i in range(len(item1))]
+    o = [(item1[i] - item2[i]) for i in range(len(item1))]
     objectif = LinExpr(o, var)
     m.setObjective(objectif, GRB.MAXIMIZE)
     #contraintes
-    m.addConstr(LinExpr([1 for i in range(len(item1))], var) >= 0, "Somme à 1 (1)")
-    m.addConstr(LinExpr([1 for i in range(len(item1))], var) <= 0, "Somme à 1 (2)")
+    m.addConstr(LinExpr([1 for i in range(len(item1))], var) == 1, "Somme à 1")
     t = [0 for i in range(len(item1))]
     for i in range(len(item1)):
         t[i] = 1
         m.addConstr(LinExpr(t, var) >= 0, "Domaine %d" % (i+1))
         t[i] = 0
-    for i in range(contraintes):
-        m.addConstr(LinExpr(contraintes[i], var) <= 0, "Contrainte %d" (i+1))
+    for i in range(len(contraintes)):
+        m.addConstr(LinExpr(contraintes[i], var) <= 0, "Contrainte %d" % (i+1))
     #résolution
-    m.optimize
-    return m.ObjVal
+    m.optimize()
+    print 
+    return m.getAttr(GRB.Attr.ObjVal)
 
 #retourne le regret max de l'item nbitem ainsi que le(s) item(s) provoquant ce regret
 def MRCSet(objets, nbitem, contraintes):
@@ -112,6 +113,8 @@ def choixQuestion(objets, contraintes):
     for i in range(len(objets)):
         regretmax, res = MRCSet(objets, i, contraintes)
         regretsmax.append(res)
+        if regretmax <= 0: # ce serait plutot < ici mais pour simplifier on fait <=
+            return i, i
         if regretmax < regretmin:
             regretmin = regretmax
             firstItem = []
@@ -120,7 +123,56 @@ def choixQuestion(objets, contraintes):
     f = random.choice(firstItem)
     return f, random.choice(regretsmax[f])
         
-    
+
+########################### procédure d'élicitation ##########################
+
+
+def elicitationComplete(objets, pareto):
+    candidats = objets
+    if pareto:
+        candidats = paretoSet(objets)
+    toprint = [candidats[i] for i in range(len(candidats))]
+    candidats = normalisation(candidats)
+    contraintes = []
+    res = -1
+    while True:
+        question = choixQuestion(candidats, contraintes)
+        if question[0] == question[1]:
+            res = question[0]
+            break
+        reponse = raw_input("Préférez-vous l'option a : " + str(toprint[question[0]]) + ", ou l'option b : " + str(toprint[question[1]]) + " ? (réponse : a/b) : ")
+        while reponse != 'a' and reponse != 'b':
+            reponse = raw_input("Il faut répondre 'a' ou 'b'! ")
+        if reponse == 'a':
+            contraintes.append([candidats[question[0]][i] - candidats[question[1]][i] for i in range(len(candidats[question[0]]))])
+        else:
+            contraintes.append([candidats[question[1]][i] - candidats[question[0]][i] for i in range(len(candidats[question[0]]))])
+    print "La meilleure solution selon vos préférences est : " + str(toprint[res])
+
+def elicitationStop(objets, pareto):
+    candidats = objets
+    if pareto:
+        candidats = paretoSet(objets)
+    toprint = [candidats[i] for i in range(len(candidats))]
+    candidats = normalisation(candidats)
+    contraintes = []
+    res = -1
+    while True:
+        question = choixQuestion(candidats, contraintes)    
+        if question[0] == question[1]:
+            res = question[0]
+            break
+        reponse = raw_input("Préférez-vous l'option a : " + str(toprint[question[0]]) + ", ou l'option b : " + str(toprint[question[1]]) + " ? (réponse : a/b, stop pour arrêter) :")
+        while reponse != 'a' and reponse != 'b' and reponse != stop:
+            reponse = raw_input("Il faut répondre 'a', 'b' ou 'stop'! ")
+        if reponse == 'a':
+            contraintes.append([candidats[question[0]][i] - candidats[question[1]][i] for i in range(len(candidats[question[0]]))])
+        elif reponse == 'b':
+            contraintes.append([candidats[question[1]][i] - candidats[question[0]][i] for i in range(len(candidats[question[0]]))])
+        else:
+            res = question[0]
+            break
+    print "La meilleure solution selon vos préférences est : " + str(toprint[res])
 
 
 
@@ -130,8 +182,16 @@ def choixQuestion(objets, contraintes):
 ################################ TESTS #####################################
 t = [[3,6],[4,5],[5,3],[5,9],[7,6],[6,7],[10,5]]
 print paretoSet(t) #OK
-print normalisation(t) #OK
+#print normalisation(t) #OK
 
+#test avec instance cours MADI
+obj = [[16,4], [12,11], [3, 16], [6,15], [9,7]]
+#obj = [[9,7], [8,5], [1,3]]
+#print paretoSet(obj)
+#print MPR(obj[4], obj[5], [])
+#print MPR(obj[5], obj[4], [])
+#print choixQuestion(obj, [])
+elicitationComplete(obj, False) #TROMPE DE SIGNE < au lieu de >
 
 
 
