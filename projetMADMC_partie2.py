@@ -5,8 +5,6 @@
 from gurobipy import *
 import random
 
-#importation des données
-
 #calcul Ideal et Nadir
 from Partie1 import *
 
@@ -86,10 +84,11 @@ def MPR(item1, item2, contraintes):
         m.addConstr(LinExpr(t, var) >= 0, "Domaine %d" % (i+1))
         t[i] = 0
     for i in range(len(contraintes)):
-        m.addConstr(LinExpr(contraintes[i], var) <= 0, "Contrainte %d" % (i+1))
+        m.addConstr(LinExpr(contraintes[i], var) >= 0, "Contrainte %d" % (i+1))
     #résolution
     m.optimize()
-    print 
+    if m.getAttr(GRB.Attr.ObjVal) < 0.00000001: # pour résoudre le fait que les contraintes doivent être strictes
+        return 0
     return m.getAttr(GRB.Attr.ObjVal)
 
 #retourne le regret max de l'item nbitem ainsi que le(s) item(s) provoquant ce regret
@@ -113,18 +112,18 @@ def choixQuestion(objets, contraintes):
     for i in range(len(objets)):
         regretmax, res = MRCSet(objets, i, contraintes)
         regretsmax.append(res)
-        if regretmax <= 0: # ce serait plutot < ici mais pour simplifier on fait <=
-            return i, i
+        if regretmax <= 0:
+            return i, i, regretmax
         if regretmax < regretmin:
             regretmin = regretmax
             firstItem = []
         if regretmin == regretmax:
             firstItem.append(i)
     f = random.choice(firstItem)
-    return f, random.choice(regretsmax[f])
+    return f, random.choice(regretsmax[f]), regretmin
         
 
-########################### procédure d'élicitation ##########################
+########################### procédures d'élicitation ##########################
 
 
 def elicitationComplete(objets, pareto):
@@ -140,14 +139,14 @@ def elicitationComplete(objets, pareto):
         if question[0] == question[1]:
             res = question[0]
             break
-        reponse = raw_input("Préférez-vous l'option a : " + str(toprint[question[0]]) + ", ou l'option b : " + str(toprint[question[1]]) + " ? (réponse : a/b) : ")
+        reponse = raw_input("Preferez-vous l'option a : " + str(toprint[question[0]]) + ", ou l'option b : " + str(toprint[question[1]]) + " ? (reponse : a/b) : ")
         while reponse != 'a' and reponse != 'b':
-            reponse = raw_input("Il faut répondre 'a' ou 'b'! ")
+            reponse = raw_input("Il faut repondre 'a' ou 'b'! ")
         if reponse == 'a':
-            contraintes.append([candidats[question[0]][i] - candidats[question[1]][i] for i in range(len(candidats[question[0]]))])
-        else:
             contraintes.append([candidats[question[1]][i] - candidats[question[0]][i] for i in range(len(candidats[question[0]]))])
-    print "La meilleure solution selon vos préférences est : " + str(toprint[res])
+        else:
+            contraintes.append([candidats[question[0]][i] - candidats[question[1]][i] for i in range(len(candidats[question[0]]))])
+    print "La meilleure solution selon vos preferences est : " + str(toprint[res])
 
 def elicitationStop(objets, pareto):
     candidats = objets
@@ -162,38 +161,104 @@ def elicitationStop(objets, pareto):
         if question[0] == question[1]:
             res = question[0]
             break
-        reponse = raw_input("Préférez-vous l'option a : " + str(toprint[question[0]]) + ", ou l'option b : " + str(toprint[question[1]]) + " ? (réponse : a/b, stop pour arrêter) :")
-        while reponse != 'a' and reponse != 'b' and reponse != stop:
-            reponse = raw_input("Il faut répondre 'a', 'b' ou 'stop'! ")
+        reponse = raw_input("Preferez-vous l'option a : " + str(toprint[question[0]]) + ", ou l'option b : " + str(toprint[question[1]]) + " ? (reponse : a/b, stop pour arreter) :")
+        while reponse != 'a' and reponse != 'b' and reponse != 'stop':
+            reponse = raw_input("Il faut repondre 'a', 'b' ou 'stop'! ")
         if reponse == 'a':
-            contraintes.append([candidats[question[0]][i] - candidats[question[1]][i] for i in range(len(candidats[question[0]]))])
-        elif reponse == 'b':
             contraintes.append([candidats[question[1]][i] - candidats[question[0]][i] for i in range(len(candidats[question[0]]))])
+        elif reponse == 'b':
+            contraintes.append([candidats[question[0]][i] - candidats[question[1]][i] for i in range(len(candidats[question[0]]))])
         else:
             res = question[0]
             break
-    print "La meilleure solution selon vos préférences est : " + str(toprint[res])
+    print "La meilleure solution selon vos preferences est : " + str(toprint[res])
 
 
+############################################ TESTS #################################################
+
+def testNbQuestions(objets, nbiter):
+    nbq = 0
+    regrets = [0 for i in range(len(objets))]
+    for i in range(nbiter):
+        nberror = 0
+        nbqit = 0
+        pref = [random.random() for j in range(len(objets[0]))]
+        pref = [pref[j] / sum(pref) for j in range(len(pref))]
+        print "pref :" + str(pref)
+        candidats = normalisation(objets)
+        scores = [sum([pref[k]*candidats[j][k] for k in range(len(pref))]) for j in range(len(candidats))]
+        objpref = 0
+        minscore = scores[0]
+        for j in range(len(scores)):
+            if scores[j] < minscore:
+                minscore = scores[j]
+                objpref = j
+        #for j in range(len(objets)):
+            #score = sum([pref[k]*objets[j][k] for k in range(len(pref))])
+        contraintes = []
+        found = False
+        it = 0
+        while not found:
+            question = choixQuestion(candidats, contraintes)
+            regrets[it] += question[2]
+            if question[0] == question[1]:
+                found = True
+                if question[0] != objpref:
+                    nberror += 1
+                else:
+                    nbq += nbqit
+                nbqit = 0
+            else:
+                nbqit += 1
+                if scores[question[0]] < scores[question[1]]:
+                    contraintes.append([candidats[question[1]][i] - candidats[question[0]][i] for i in range(len(candidats[question[0]]))])
+                else:
+                    contraintes.append([candidats[question[0]][i] - candidats[question[1]][i] for i in range(len(candidats[question[0]]))])
+            it += 1
+    regrets = [regrets[i] / nbiter for i in range(len(regrets))]
+    return nberror, nbq / float(nbiter - nberror), regrets
 
 
+############################################## PROGRAMME ################################################
+#données voitures
+data=[[-170,-250,1145,7.5,124],#alfa
+     [-231,-370,1315,5.8,166],#audi
+     [-180,-250,1035,6.7,139],#abarth5
+     [-190,-250,997,5.9,145],#abarth6
+     [-140,-210,1128,9,104],#ford1
+     [-185,-240,1163,6.9,138],#fordST
+     [-192,-280,1160,6.8,133],#mini
+     [-231,-320,1205,6.3,155],#miniJCW
+     [-150,-220,1103,8.5,139],#OpelS
+     [-207,-280,1218,6.8,174],#OpelOPC
+     [-208,-300,1160,6.5,125],#peugot
+     [-208,-300,1160,6.5,125],#peugotSp
+     [-120,-190,1090,9.4,120],#renGT
+     [-200,-240,1204,6.7,133],#renRS
+     [-220,-280,1204,6.6,135],#renRST
+     [-110,-175,1027,9.1,119],#seatFR
+     [-192,-320,1269,6.7,139],#seatCh
+     [-136,-160,1040,8.7,147],#Suzuki
+     [-150,-250,1212,7.9,110],#VWB
+     [-192,-320,1269,6.7,139]#VWGTI
+     ]
+"""
+comp = raw_input("Elicitation complete ? (o/n) : ")
+par = raw_input("Limiter les calculs aux P-opt? (o/n) :")
+if comp == 'o':
+    if par == 'o':
+        elicitationComplete(data, True)
+    else:
+        elicitationComplete(data, False)
+else:
+        if par == 'o':
+        elicitationStop(data, True)
+    else:
+        elicitationStop(data, False)"""
 
 
-################################ TESTS #####################################
-t = [[3,6],[4,5],[5,3],[5,9],[7,6],[6,7],[10,5]]
-print paretoSet(t) #OK
-#print normalisation(t) #OK
-
-#test avec instance cours MADI
-obj = [[16,4], [12,11], [3, 16], [6,15], [9,7]]
-#obj = [[9,7], [8,5], [1,3]]
-#print paretoSet(obj)
-#print MPR(obj[4], obj[5], [])
-#print MPR(obj[5], obj[4], [])
-#print choixQuestion(obj, [])
-elicitationComplete(obj, False) #TROMPE DE SIGNE < au lieu de >
-
-
-
-                
+##### tests #####
+obj = [[16,4], [12,11], [3,16], [6,15], [9,7]]
+#print testNbQuestions(obj, 2) # OK! ca semble marcher, et sans erreur en plus
+print testNbQuestions(data, 10)
     
