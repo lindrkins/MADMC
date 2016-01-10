@@ -1,24 +1,23 @@
 
 # coding: utf-8
 
-# In[9]:
+# In[41]:
 
 # import math
 import random
 def somPRand(data):
+    Nad,Id=getNad(data)
     random.seed()
-    w=[random.randint(0,10000) for i in range(len(data[0]))]
-    print (w)
+    w=[random.random() for i in range(len(data[0]))]
     value=-1
     num=0
     for i in range(len(data)):
         temp=0
         for j in range(len(data[0])):
-            temp=temp+w[j]*data[i][j]
+            temp=temp+w[j]*data[i][j]/abs(Nad[j]-Id[j])
         if temp<value or value==-1:
             value=temp
             num=i
-    print (data[num])
     return data[num]
 
 def getId(data):
@@ -51,7 +50,11 @@ def tcheb(data,eps):
     Nad,Id=getNad(data)
     w=[]
     for i in range(len(Id)):
-        w.append(alpha/abs(Nad[i]-Id[i]))
+        T=abs(Nad[i]-Id[i])
+        if T!=0:
+            w.append(alpha/T)
+        else:
+            w.append(0)
     tempRes=100000
     num=0
     for i in range(len(data)):
@@ -73,8 +76,11 @@ def sat(data,num,decideur,best):
         temp=0
         buff=0
         pos=0
+        Nad,Id=getNad(data)
         for i in range(len(best)):
-            temp=data[num][i]-best[i]
+            T=abs(Nad[i]-Id[i])
+            if T!=0:
+                temp=(data[num][i]-best[i])/T
             if temp>buff:
                 buff=temp
                 pos=i
@@ -107,7 +113,11 @@ def tchebToP(data,eps,vect):
     Id=vect
     w=[]
     for i in range(len(Id)):
-        w.append(alpha/abs(Nad[i]-Id[i]))
+        T=abs(Nad[i]-Id[i])
+        if T!=0:
+            w.append(alpha/T)
+        else:
+            w.append(0)
     tempRes=100000
     num=0
     for i in range(len(data)):
@@ -184,8 +194,7 @@ data=[[-170,-250,1145,7.5,25190,124],#alfa
      [-150,-250,1212,7.9,110,-4,-3],#VWB
      [-192,-320,1269,6.7,139,-4,-3]#VWGTI
      ]"""
-print (data)
-print (methode(data,0,0.00001))
+print (methode(data,1,0.00001))
 
 
 # 
