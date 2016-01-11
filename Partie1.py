@@ -9,6 +9,7 @@ def somPRand(data):
     Nad,Id=getNad(data)
     random.seed()
     w=[random.random() for i in range(len(data[0]))]
+    print ('poid pour Sommme pondere')
     print (w)
     value=-1
     num=0
@@ -94,13 +95,16 @@ def methode(data,decideur,eps):
     best=[]
     if decideur!=0:
         best=somPRand(data)
+        print('meilleur resultat pour la somme pondere')
         print (best)
     dataT=data
     num,g=tcheb(data,eps)
     test,info=sat(data,num,decideur,best)
     while(not test):
         dataB=[]
+        print('resultat de tchebichev')
         print (dataT[num])
+        print('position de l\'argument a ameliore')
         print(info)
         for i in range(len(dataT)):
             if dataT[i][info]<dataT[num][info]:
